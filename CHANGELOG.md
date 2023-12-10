@@ -60,7 +60,7 @@
 
 ### Additions
 
-- Added `light` configuration for apply items, this lets you specify which hooks should be skipped when running `apply` with the new `--light` flag.
+- Added `lightweight` configuration for apply items, this lets you specify which hooks should be skipped when running `apply` with the new `--lightweight` flag.
 
 ## [0.3.5](https://github.com/Misterio77/flavours/releases/tag/v0.3.5)
 

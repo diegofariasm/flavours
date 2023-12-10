@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Context, Result};
 use base16_color_scheme::Scheme;
+use base16_color_scheme::scheme::BaseIndex;
 use rand::seq::SliceRandom;
 use std::fs;
 use std::io::{self, Read};
@@ -114,7 +115,7 @@ pub fn apply(
     base_dir: &path::Path,
     config_dir: &path::Path,
     config_path: &path::Path,
-    light_mode: bool,
+    lightweight_mode: bool,
     from_stdin: bool,
     verbose: bool,
 ) -> Result<()> {
@@ -154,16 +155,31 @@ pub fn apply(
             scheme_slug,
         )
     };
-
+    // This is NOT supplied by flavours.
     let mut scheme: Scheme = serde_yaml::from_str(&scheme_contents)?;
     scheme.slug = scheme_slug;
 
+    let mut light_mode = false;
+
+    if let Some(bg_color) = scheme.colors.get(&BaseIndex(0)) {
+            let brightness = (0.299 * f64::from(bg_color.0[0])
+                + 0.587 * f64::from(bg_color.0[1])
+                + 0.114 * f64::from(bg_color.0[2]))
+                / 255.0;
+
+            // Choose a threshold value based on your preference
+            const BRIGHTNESS_THRESHOLD: f64 = 0.5;
+
+            light_mode = brightness > BRIGHTNESS_THRESHOLD
+        }
+
+
     if verbose {
+        
         println!(
             "Using scheme: {} ({}), by {}",
             scheme.scheme, scheme.slug, scheme.author
         );
-        println!();
     }
 
     //Check if config file exists
@@ -227,16 +243,19 @@ pub fn apply(
                 Err(_e) => String::from("default"),
             }
         };
+
         //Is the hook lightweight?
-        let light = match &item.light {
+        let lightweight = match &item.lightweight {
             Some(value) => *value,
             None => true,
         };
+
         //Rewrite or replace
         let rewrite = match &item.rewrite {
             Some(value) => *value,
             None => false,
         };
+
         //Replace start delimiter
         let start = match &item.start {
             Some(value) => String::from(value),
@@ -244,6 +263,7 @@ pub fn apply(
         }
         .trim()
         .to_lowercase();
+
         //Replace end delimiter
         let end = match &item.end {
             Some(value) => String::from(value),
@@ -285,6 +305,7 @@ pub fn apply(
         } else {
             //Or replace with delimiters
             let file_content = fs::read_to_string(&file)?;
+
             match replace_delimiter(&file_content, &start, &end, &built_template) {
                 Ok(content) => fs::write(&file, content)
                     .with_context(|| format!("Couldn't write to file {:?}", file))?,
@@ -295,12 +316,19 @@ pub fn apply(
             }
         }
 
-        let command = item.hook.clone();
+        // Use the light mode hook if the current theme is light mode and if it exists.
+        let command = if light_mode {
+            item.light.as_ref().and_then(|light| light.hook.clone()).or_else(|| item.hook.clone())
+        } else {
+          item.hook.clone()
+        };
+
         let shell = shell.clone();
+
         // Only add hook to queue if either:
         // - Not running on lightweight mode
         // - Hook is set as lightweight
-        if !light_mode || light {
+        if !lightweight_mode || lightweight {
             hooks.push(thread::spawn(move || run_hook(command, &shell, verbose)));
         }
     }
@@ -320,5 +348,6 @@ pub fn apply(
     if verbose {
         println!("Successfully applied {}", &scheme.slug);
     }
+
     Ok(())
 }

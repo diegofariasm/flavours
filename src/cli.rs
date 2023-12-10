@@ -172,10 +172,9 @@ pub fn build_cli() -> App<'static> {
                     .multiple_values(true)
                 )
                 .arg(
-                    Arg::new("light")
-                    .about("Skip running heavier hooks (entries marked 'light=false')")
-                    .long("light")
-                    .short('l')
+                    Arg::new("lightweight")
+                    .about("Skip running heavier hooks (entries marked 'lightweight=false')")
+                    .long("lightweight")
                 )
                 .arg(
                     Arg::new("stdin")

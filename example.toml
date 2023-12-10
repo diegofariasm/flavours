@@ -28,7 +28,7 @@
 # # Command to execute after injecting (goes through shell)
 # hook = ""
 # # Whether this hook should be executed when flavours is ran with lightweight flag
-# light = true
+# lightweight = true
 
 
 # Example file. For sway, waybar and (beautiful)discord. Runs hooks through bash:

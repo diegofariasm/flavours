@@ -269,6 +269,7 @@ pub fn generate(image_path: &Path, mode: Mode, verbose: bool) -> Result<VecDeque
 
     // Add the main colors to the vector
     let mut colors = VecDeque::new();
+    
     colors.push_back(to_hex(background)?);
     colors.push_back(to_hex(sum_colors(background, foreground, 0.2))?);
     colors.push_back(to_hex(sum_colors(background, foreground, 0.4))?);
@@ -298,6 +299,7 @@ pub fn generate(image_path: &Path, mode: Mode, verbose: bool) -> Result<VecDeque
 
             // Build yxy again and convert back to rgb
             let yxy: Yxy = Yxy::from_components((x, y, luma));
+
             Rgb::from(yxy)
         };
         // Add to the colors vector

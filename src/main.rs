@@ -84,14 +84,14 @@ fn main() -> Result<()> {
                 //Defaults to wildcard
                 None => vec!["*"],
             };
-            let light = sub_matches.is_present("light");
+            let lightweight = sub_matches.is_present("lightweight");
             let from_stdin = sub_matches.is_present("stdin");
             apply::apply(
                 patterns,
                 &flavours_dir,
                 &flavours_config_dir,
                 &flavours_config,
-                light,
+                lightweight,
                 from_stdin,
                 verbose,
             )

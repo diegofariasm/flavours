@@ -11,3 +11,5 @@
 
 # Ignore direnv data
 .direnv
+
+/result
