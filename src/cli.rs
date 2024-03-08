@@ -113,7 +113,7 @@ pub fn build_cli() -> App<'static> {
                 .arg(
                     Arg::new("mode")
                     .about("Whether to generate a dark or light scheme")
-                    .possible_values(&["dark", "light"])
+                    .possible_values(&["dark", "light", "auto"])
                     .required(true)
                     .value_hint(ValueHint::Other)
                 )

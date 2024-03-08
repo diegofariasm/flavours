@@ -4,6 +4,7 @@ use base16_color_scheme::{
     Scheme,
 };
 use dirs::{data_dir, preference_dir};
+use palette::Srgb;
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::env;
@@ -139,12 +140,7 @@ fn main() -> Result<()> {
             let operation = sub_matches
                 .value_of("operation")
                 .ok_or_else(|| anyhow!("Invalid operation"))?;
-            update::update(
-                operation,
-                &flavours_dir,
-                verbose,
-                &flavours_config
-            )
+            update::update(operation, &flavours_dir, verbose, &flavours_config)
         }
 
         Some(("info", sub_matches)) => {
@@ -172,6 +168,48 @@ fn main() -> Result<()> {
             let mode = match sub_matches.value_of("mode") {
                 Some("dark") => Ok(generate::Mode::Dark),
                 Some("light") => Ok(generate::Mode::Light),
+                Some("auto") => {
+                    let img_buffer = image::open(&image)?;
+                    let img_pixels = img_buffer.to_rgba8().into_raw();
+
+                    // Use color thief to get a palette
+                    let palette = color_thief::get_palette(
+                        img_pixels.as_slice(),
+                        color_thief::ColorFormat::Rgba,
+                        1,
+                        15,
+                    )?;
+
+                    // Calculate the average luminance of the colors in the palette
+                    let total_luminance: f32 = palette
+                        .iter()
+                        .map(|&color| {
+                            let srgb_color: Srgb = Srgb::new(
+                                f32::from(color.r) / 255.0,
+                                f32::from(color.g) / 255.0,
+                                f32::from(color.b) / 255.0,
+                            );
+
+                            let red = srgb_color.red as f32 * 0.222;
+                            let green = srgb_color.green as f32 * 0.707;
+                            let blue = srgb_color.blue as f32 * 0.071;
+
+                            red + green + blue
+                        })
+                        .sum();
+
+                    let average_luminance = total_luminance / palette.len() as f32;
+
+                    if verbose {
+                        println!("The average luminance is: {}", average_luminance);
+                    };
+
+                    if average_luminance > 0.6 {
+                        Ok(generate::Mode::Light)
+                    } else {
+                        Ok(generate::Mode::Dark)
+                    }
+                }
                 _ => Err(anyhow!("No valid mode specified")),
             }?;
 

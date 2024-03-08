@@ -74,9 +74,6 @@
           craneLib.buildDepsOnly
           (
             commonArgs
-            // {
-              pname = "artifacts";
-            }
           );
 
         flavoursDrv =
@@ -159,6 +156,7 @@
         packages = {
           flavours = flavoursDrv;
         };
+        packages.default = packages.flavours;
 
         formatter = pkgs.writeShellApplication {
           name = "treefmt";
