@@ -179,6 +179,7 @@ pub fn build_cli() -> App<'static> {
                     .about("Specific theme to apply: dark, light or all.")
                     .possible_values(&["dark", "light", "all"])
                     .value_hint(ValueHint::Other)
+                    .default_value("all")
                     .long("theme")
                 )
                 .arg(
