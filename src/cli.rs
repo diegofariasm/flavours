@@ -60,6 +60,16 @@ pub fn build_cli() -> App<'static> {
                 .setting(AppSettings::DisableHelpSubcommand)
                 .setting(AppSettings::DisableVersionFlag)
                 .setting(AppSettings::ColoredHelp)
+                // TODO: make using both theme and tempalates at the same time
+                // a had error.
+                .arg(
+                    Arg::new("theme")
+    		    .about("Specify the theme type to filter schemes.")
+                    .possible_values(&["dark", "light", "all"])
+                    .default_value("all")
+                    .value_hint(ValueHint::Other)
+                    .long("theme")
+                )
                 .arg(
                     Arg::new("templates")
                     .about("List templates instead of schemes")
@@ -164,6 +174,13 @@ pub fn build_cli() -> App<'static> {
                 .setting(AppSettings::DisableHelpSubcommand)
                 .setting(AppSettings::DisableVersionFlag)
                 .setting(AppSettings::ColoredHelp)
+                .arg(
+                    Arg::new("theme")
+                    .about("Specific theme to apply: dark, light or all.")
+                    .possible_values(&["dark", "light", "all"])
+                    .value_hint(ValueHint::Other)
+                    .long("theme")
+                )
                 .arg(
                     Arg::new("pattern")
                     .about("Scheme to be applied, supports glob. If more than one is specified (or if glob pattern matched more than one), chooses one randomly. If ommited, defaults to * (all installed schemes).")

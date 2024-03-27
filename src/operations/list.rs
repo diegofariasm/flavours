@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use std::path::Path;
 
+use crate::find::filter_schemes_by_theme;
 use crate::find::find_schemes;
 
 /// List subcommand
@@ -12,6 +13,7 @@ use crate::find::find_schemes;
 /// * `lines` - Should we print each scheme on its own line?
 pub fn list(
     patterns: Vec<&str>,
+    theme: &str,
     base_dir: &Path,
     config_dir: &Path,
     _verbose: bool,
@@ -19,7 +21,14 @@ pub fn list(
 ) -> Result<()> {
     let mut schemes = Vec::new();
     for pattern in patterns {
-        let found_schemes = find_schemes(pattern, base_dir, config_dir)?;
+        let mut found_schemes = find_schemes(pattern, base_dir, config_dir)?;
+
+        // Filter the  schemes based on the theme mode the user wants.
+        found_schemes = match theme {
+            "dark" => filter_schemes_by_theme(found_schemes, "dark")?,
+            "light" => filter_schemes_by_theme(found_schemes, "light")?,
+            _ => found_schemes,
+        };
 
         for found_scheme in found_schemes {
             schemes.push(String::from(
@@ -31,6 +40,7 @@ pub fn list(
             ));
         }
     }
+
     schemes.sort();
     schemes.dedup();
 

@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context, Result};
-use base16_color_scheme::Scheme;
 use base16_color_scheme::scheme::BaseIndex;
+use base16_color_scheme::Scheme;
 use rand::seq::SliceRandom;
 use std::fs;
 use std::io::{self, Read};
@@ -10,7 +10,7 @@ use std::str;
 use std::thread;
 
 use crate::config::Config;
-use crate::find::{find_schemes, find_template};
+use crate::find::{filter_schemes_by_theme, find_schemes, find_template};
 use crate::operations::build::build_template;
 
 /// Picks a random path, from given vec
@@ -112,6 +112,7 @@ fn replace_delimiter(
 /// * `verbose` - Should we be verbose?
 pub fn apply(
     patterns: Vec<&str>,
+    theme: &str,
     base_dir: &path::Path,
     config_dir: &path::Path,
     config_path: &path::Path,
@@ -129,12 +130,24 @@ pub fn apply(
         //Find schemes that match given patterns
         let mut schemes = Vec::new();
         for pattern in patterns {
-            let found_schemes = find_schemes(pattern, base_dir, config_dir)?;
+            let mut found_schemes = find_schemes(pattern, base_dir, config_dir)?;
+
+            // Filter the  schemes based on the theme mode the user wants.
+            found_schemes = match theme {
+                "dark" => filter_schemes_by_theme(found_schemes, "dark")?,
+                "light" => filter_schemes_by_theme(found_schemes, "light")?,
+                _ => found_schemes,
+            };
 
             for found_scheme in found_schemes {
+                if verbose {
+                    println!("Found scheme: {:#?}", found_scheme);
+                }
+
                 schemes.push(found_scheme);
             }
         }
+
         //Sort and remove duplicates
         schemes.sort();
         schemes.dedup();
@@ -150,6 +163,7 @@ pub fn apply(
 
         //Read chosen scheme
         (
+            // Scheme contents
             fs::read_to_string(&scheme_file)
                 .with_context(|| format!("Couldn't read scheme file at {:?}.", scheme_file))?,
             scheme_slug,
@@ -162,20 +176,18 @@ pub fn apply(
     let mut light_mode = false;
 
     if let Some(bg_color) = scheme.colors.get(&BaseIndex(0)) {
-            let brightness = (0.299 * f64::from(bg_color.0[0])
-                + 0.587 * f64::from(bg_color.0[1])
-                + 0.114 * f64::from(bg_color.0[2]))
-                / 255.0;
+        let brightness = (0.299 * f64::from(bg_color.0[0])
+            + 0.587 * f64::from(bg_color.0[1])
+            + 0.114 * f64::from(bg_color.0[2]))
+            / 255.0;
 
-            // Choose a threshold value based on your preference
-            const BRIGHTNESS_THRESHOLD: f64 = 0.5;
+        // Choose a threshold value based on your preference
+        const BRIGHTNESS_THRESHOLD: f64 = 0.5;
 
-            light_mode = brightness > BRIGHTNESS_THRESHOLD
-        }
-
+        light_mode = brightness > BRIGHTNESS_THRESHOLD
+    }
 
     if verbose {
-        
         println!(
             "Using scheme: {} ({}), by {}",
             scheme.scheme, scheme.slug, scheme.author
@@ -318,9 +330,12 @@ pub fn apply(
 
         // Use the light mode hook if the current theme is light mode and if it exists.
         let command = if light_mode {
-            item.light.as_ref().and_then(|light| light.hook.clone()).or_else(|| item.hook.clone())
+            item.light
+                .as_ref()
+                .and_then(|light| light.hook.clone())
+                .or_else(|| item.hook.clone())
         } else {
-          item.hook.clone()
+            item.hook.clone()
         };
 
         let shell = shell.clone();

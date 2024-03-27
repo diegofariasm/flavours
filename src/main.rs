@@ -87,8 +87,11 @@ fn main() -> Result<()> {
             };
             let lightweight = sub_matches.is_present("lightweight");
             let from_stdin = sub_matches.is_present("stdin");
+            let theme = sub_matches.value_of("theme").unwrap();
+
             apply::apply(
                 patterns,
+                &theme,
                 &flavours_dir,
                 &flavours_config_dir,
                 &flavours_config,
@@ -115,6 +118,7 @@ fn main() -> Result<()> {
                 //Defaults to wildcard
                 None => vec!["*"],
             };
+            let theme = sub_matches.value_of("theme").unwrap();
             let lines = sub_matches.is_present("lines");
 
             if sub_matches.is_present("templates") {
@@ -128,6 +132,7 @@ fn main() -> Result<()> {
             } else {
                 list::list(
                     patterns,
+                    &theme,
                     &flavours_dir,
                     &flavours_config_dir,
                     verbose,
