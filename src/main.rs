@@ -4,11 +4,14 @@ use base16_color_scheme::{
     Scheme,
 };
 use dirs::{data_dir, preference_dir};
+use flavours::find::find_schemes;
+use flavours::find::find_template;
 use palette::Srgb;
 use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::env;
-use std::path::Path;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use flavours::operations::{apply, build, current, generate, info, list, list_templates, update};
 use flavours::{cli, completions};
@@ -102,14 +105,71 @@ fn main() -> Result<()> {
         }
 
         Some(("build", sub_matches)) => {
-            // Get file paths
-            let scheme_file = sub_matches
-                .value_of("scheme")
-                .ok_or_else(|| anyhow!("You must specify a scheme file"))?;
-            let template_file = sub_matches
-                .value_of("template")
-                .ok_or_else(|| anyhow!("You must specify a template file"))?;
-            build::build(Path::new(scheme_file), Path::new(template_file))
+            // let scheme = sub_matches.value_of("scheme");
+            let scheme_file_str = sub_matches.value_of("scheme").ok_or_else(|| {
+                anyhow!(
+                    "You must specify a scheme or file, the latter taking precedence if it exists"
+                )
+            })?;
+
+            let scheme_file_path = if Path::new(scheme_file_str).exists() {
+                PathBuf::from(scheme_file_str)
+            } else {
+                find_schemes(scheme_file_str, &flavours_dir, &flavours_config_dir)?
+                    .first() // Get the first PathBuf from the vector
+                    .ok_or_else(|| anyhow!("Could not find a scheme for {}", scheme_file_str))? // Handle None case
+                    .clone() // Clone the PathBuf to create a new instance
+            };
+
+            if verbose {
+                println!("Scheme is at: {:#?}", scheme_file_path);
+            }
+
+            let scheme_slug = scheme_file_path
+                .file_stem()
+                .ok_or_else(|| anyhow!("The scheme path must contain a valid filename"))?
+                .to_string_lossy()
+                .to_string();
+
+            // Get template file path
+            let template_file_str = sub_matches.value_of("template").ok_or_else(|| {
+                 anyhow!("You must specify a template or file, the latter taking precedence if it exists")
+             })?;
+
+            let subtemplate = "default";
+
+            // Convert template_file_str to a Path
+
+            let template_file_path = if Path::new(template_file_str).exists() {
+                PathBuf::from(template_file_str) // Create a PathBuf from the existing path
+            } else {
+                find_template(
+                    template_file_str,
+                    subtemplate,
+                    &flavours_dir,
+                    &flavours_config,
+                )
+                .with_context(|| {
+                    format!(
+                        "Failed to locate subtemplate file {}/{}",
+                        template_file_str, subtemplate
+                    )
+                })?
+            };
+
+            if verbose {
+                println!("Template is at: {:#?}", template_file_path);
+            }
+
+            let scheme_contents = &fs::read_to_string(&scheme_file_path)
+                .with_context(|| format!("Couldn't read scheme file at {:?}.", scheme_file_path))?;
+
+            let template_contents =
+                &fs::read_to_string(&template_file_path).with_context(|| {
+                    format!("Couldn't read template file at {:?}.", template_file_path)
+                })?;
+
+            build::build(scheme_slug, scheme_contents, template_contents)
         }
 
         Some(("list", sub_matches)) => {

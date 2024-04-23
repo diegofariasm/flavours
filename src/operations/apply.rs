@@ -182,7 +182,7 @@ pub fn apply(
             / 255.0;
 
         // Choose a threshold value based on your preference
-        const BRIGHTNESS_THRESHOLD: f64 = 0.5;
+        const BRIGHTNESS_THRESHOLD: f64 = 0.6;
 
         light_mode = brightness > BRIGHTNESS_THRESHOLD
     }
@@ -248,6 +248,7 @@ pub fn apply(
             Some(value) => String::from(value),
             None => String::from("default"),
         };
+        
         if subtemplate == "{scheme}" {
             let subtemplate_scheme = find_template(template, &scheme.scheme, base_dir, config_dir);
             subtemplate = match subtemplate_scheme {
@@ -349,6 +350,7 @@ pub fn apply(
     }
 
     let last_scheme_file = &base_dir.join("lastscheme");
+
     fs::write(&last_scheme_file, &scheme.scheme_slug())
         .with_context(|| "Couldn't update applied scheme name")?;
 
