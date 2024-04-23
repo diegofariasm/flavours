@@ -147,7 +147,7 @@ fn main() -> Result<()> {
                     template_file_str,
                     subtemplate,
                     &flavours_dir,
-                    &flavours_config,
+                    &flavours_config_dir,
                 )
                 .with_context(|| {
                     format!(
