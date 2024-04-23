@@ -225,15 +225,19 @@ pub fn build_cli() -> App<'static> {
                 .setting(AppSettings::ColoredHelp)
                 .arg(
                     Arg::new("scheme")
-                    .about("Path to scheme file.")
+                    .about("Scheme or scheme file to use when building")
                     .required(true)
                     .value_hint(ValueHint::FilePath)
                 )
                 .arg(
                     Arg::new("template")
-                    .about("Path to template file.")
+                    .about("Template or scheme file to use when building")
                     .required(true)
                     .value_hint(ValueHint::FilePath)
+                )
+               .arg(
+                    Arg::new("subtemplate")
+                    .about("Subtemplate to use when building with user defined templates")
                 )
         )
 }

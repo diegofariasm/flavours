@@ -136,11 +136,15 @@ fn main() -> Result<()> {
                  anyhow!("You must specify a template or file, the latter taking precedence if it exists")
              })?;
 
-            let subtemplate = "default";
-
-            // Convert template_file_str to a Path
+            let subtemplate = sub_matches.value_of("subtemplate").unwrap_or("default");
 
             let template_file_path = if Path::new(template_file_str).exists() {
+                if subtemplate != "default" {
+                    return Err(anyhow!(
+                        "Using subtemplates is not supported incase you are using a scheme file."
+                    ));
+                }
+
                 PathBuf::from(template_file_str) // Create a PathBuf from the existing path
             } else {
                 find_template(
