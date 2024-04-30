@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Context, Result};
-use base16_color_scheme::scheme::BaseIndex;
 use base16_color_scheme::Scheme;
 use rand::seq::SliceRandom;
 use std::fs;
@@ -10,7 +9,7 @@ use std::str;
 use std::thread;
 
 use crate::config::Config;
-use crate::find::{filter_schemes_by_theme, find_schemes, find_template};
+use crate::find::{filter_schemes_by_theme, find_schemes, find_template, get_luminance, Luminance};
 use crate::operations::build::build_template;
 
 /// Picks a random path, from given vec
@@ -173,19 +172,10 @@ pub fn apply(
     let mut scheme: Scheme = serde_yaml::from_str(&scheme_contents)?;
     scheme.slug = scheme_slug;
 
-    let mut light_mode = false;
-
-    if let Some(bg_color) = scheme.colors.get(&BaseIndex(0)) {
-        let brightness = (0.299 * f64::from(bg_color.0[0])
-            + 0.587 * f64::from(bg_color.0[1])
-            + 0.114 * f64::from(bg_color.0[2]))
-            / 255.0;
-
-        // Choose a threshold value based on your preference
-        const BRIGHTNESS_THRESHOLD: f64 = 0.6;
-
-        light_mode = brightness > BRIGHTNESS_THRESHOLD
-    }
+    let light_mode = match get_luminance(&scheme) {
+        Luminance::Dark => false,
+        Luminance::Light => true,
+    };
 
     if verbose {
         println!(
@@ -248,7 +238,7 @@ pub fn apply(
             Some(value) => String::from(value),
             None => String::from("default"),
         };
-        
+
         if subtemplate == "{scheme}" {
             let subtemplate_scheme = find_template(template, &scheme.scheme, base_dir, config_dir);
             subtemplate = match subtemplate_scheme {

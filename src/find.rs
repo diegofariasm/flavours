@@ -1,10 +1,11 @@
 use anyhow::{anyhow, Context, Result};
 use base16_color_scheme::scheme::BaseIndex;
+use base16_color_scheme::scheme::RgbColor;
 use base16_color_scheme::Scheme;
 use glob::glob;
 use path::{Path, PathBuf};
-use std::fs;
 use std::path;
+use std::{fmt, fs, vec};
 
 /// Find color schemes matching pattern in either the config dir or the data dir.
 ///
@@ -45,6 +46,50 @@ pub fn find_schemes(pattern: &str, base_dir: &Path, config_dir: &Path) -> Result
     Ok(found)
 }
 
+/// Luminosity of a theme
+#[derive(Debug)]
+pub enum Luminance {
+    Dark,
+    Light,
+}
+
+impl fmt::Display for Luminance {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Luminance::Dark => write!(f, "dark"),
+            Luminance::Light => write!(f, "light"),
+        }
+    }
+}
+
+pub fn get_luminance(scheme: &Scheme) -> Luminance {
+    let rgb2luminance = |rgb: &RgbColor| {
+        let [r, g, b] = rgb.0;
+
+        // there are exacter ways, this turns out to be good enough
+        // https://www.w3.org/TR/AERT/#color-contrast
+        let luminance = 0.299 * r as f32 + 0.587 * g as f32 + 0.114 * b as f32;
+        luminance / 255.0
+    };
+
+    // Take into account the main background colors as per the styling guide
+    // https://github.com/tinted-theming/home/blob/main/styling.md
+    let background_indices = vec![0, 1];
+
+    let luminances: Vec<_> = background_indices
+        .into_iter()
+        .map(|idx| rgb2luminance(scheme.colors.get(&BaseIndex(idx)).unwrap()))
+        .collect();
+
+    let avg_luminance: f32 = luminances.iter().sum::<f32>() / luminances.len() as f32;
+
+    if avg_luminance < 0.5 {
+        Luminance::Dark
+    } else {
+        Luminance::Light
+    }
+}
+
 pub fn filter_schemes_by_theme(schemes: Vec<PathBuf>, theme: &str) -> Result<Vec<PathBuf>> {
     let mut filtered_schemes = Vec::new();
 
@@ -54,27 +99,17 @@ pub fn filter_schemes_by_theme(schemes: Vec<PathBuf>, theme: &str) -> Result<Vec
 
         let scheme: Scheme = serde_yaml::from_str(&scheme_contents)?;
 
-        let mut light_mode = false;
-        if let Some(bg_color) = scheme.colors.get(&BaseIndex(0)) {
-            let brightness = (0.299 * f64::from(bg_color.0[0])
-                + 0.587 * f64::from(bg_color.0[1])
-                + 0.114 * f64::from(bg_color.0[2]))
-                / 255.0;
-
-            // Choose a threshold value based on your preference
-            const BRIGHTNESS_THRESHOLD: f64 = 0.5;
-
-            light_mode = brightness > BRIGHTNESS_THRESHOLD
-        }
+        let light_mode = match get_luminance(&scheme) {
+            Luminance::Light => true,
+            Luminance::Dark => false,
+        };
 
         if theme == "light" {
             if light_mode {
                 filtered_schemes.push(scheme_file)
             }
-        } else {
-            if !light_mode {
-                filtered_schemes.push(scheme_file)
-            }
+        } else if !light_mode {
+            filtered_schemes.push(scheme_file)
         }
     }
 
@@ -136,14 +171,14 @@ pub fn find_template(
 ) -> Result<PathBuf> {
     let template_config_file = config_dir
         .join("templates")
-        .join(&template)
+        .join(template)
         .join("templates")
         .join(format!("{}.mustache", subtemplate));
 
     let template_data_file = base_dir
         .join("base16")
         .join("templates")
-        .join(&template)
+        .join(template)
         .join("templates")
         .join(format!("{}.mustache", subtemplate));
 

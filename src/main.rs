@@ -79,7 +79,25 @@ fn main() -> Result<()> {
 
     // Check which subcommand was used
     match matches.subcommand() {
-        Some(("current", _)) => current::current(&flavours_dir, verbose),
+        Some(("current", sub_matches)) => match sub_matches.subcommand() {
+            Some(("luminance", _)) => {
+                let scheme_luminance =
+                    current::get_current_scheme_luminance(&flavours_dir, &flavours_config_dir)
+                        .expect("Failed to get current scheme luminance");
+
+                println!("{}", scheme_luminance);
+
+                Ok(())
+            }
+            _ => {
+                let scheme_name = current::get_current_scheme_name(&flavours_dir)
+                    .expect("Failed to get current scheme name");
+
+                println!("{}", scheme_name);
+
+                Ok(())
+            }
+        },
 
         Some(("apply", sub_matches)) => {
             //Get search patterns
@@ -90,11 +108,11 @@ fn main() -> Result<()> {
             };
             let lightweight = sub_matches.is_present("lightweight");
             let from_stdin = sub_matches.is_present("stdin");
-            let theme = sub_matches.value_of("theme").unwrap();
+            let luminance = sub_matches.value_of("luminance").unwrap();
 
             apply::apply(
                 patterns,
-                &theme,
+                &luminance,
                 &flavours_dir,
                 &flavours_config_dir,
                 &flavours_config,
@@ -182,7 +200,7 @@ fn main() -> Result<()> {
                 //Defaults to wildcard
                 None => vec!["*"],
             };
-            let theme = sub_matches.value_of("theme").unwrap();
+            let luminance = sub_matches.value_of("luminance").unwrap();
             let lines = sub_matches.is_present("lines");
 
             if sub_matches.is_present("templates") {
@@ -196,7 +214,7 @@ fn main() -> Result<()> {
             } else {
                 list::list(
                     patterns,
-                    &theme,
+                    luminance,
                     &flavours_dir,
                     &flavours_config_dir,
                     verbose,
@@ -273,7 +291,7 @@ fn main() -> Result<()> {
                         println!("The average luminance is: {}", average_luminance);
                     };
 
-                    if average_luminance > 0.6 {
+                    if average_luminance > 0.5 {
                         Ok(generate::Mode::Light)
                     } else {
                         Ok(generate::Mode::Dark)

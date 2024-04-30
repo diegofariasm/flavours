@@ -51,6 +51,10 @@ pub fn build_cli() -> App<'static> {
                 .setting(AppSettings::DisableHelpSubcommand)
                 .setting(AppSettings::DisableVersionFlag)
                 .setting(AppSettings::ColoredHelp)
+                .subcommand(
+                    App::new("luminance")
+                    .about("Instead of the name, returns if the current theme is a dark or light theme, calculated from the colors of the theme.")
+                )
         )
         .subcommand(
             App::new("list")
@@ -60,15 +64,13 @@ pub fn build_cli() -> App<'static> {
                 .setting(AppSettings::DisableHelpSubcommand)
                 .setting(AppSettings::DisableVersionFlag)
                 .setting(AppSettings::ColoredHelp)
-                // TODO: make using both theme and tempalates at the same time
-                // a had error.
                 .arg(
-                    Arg::new("theme")
-    		    .about("Specify the theme type to filter schemes.")
+                    Arg::new("luminance")
+    		    .about("Specify the luminance type to filter schemes.")
                     .possible_values(&["dark", "light", "all"])
                     .default_value("all")
                     .value_hint(ValueHint::Other)
-                    .long("theme")
+                    .long("luminance")
                 )
                 .arg(
                     Arg::new("templates")
@@ -175,12 +177,12 @@ pub fn build_cli() -> App<'static> {
                 .setting(AppSettings::DisableVersionFlag)
                 .setting(AppSettings::ColoredHelp)
                 .arg(
-                    Arg::new("theme")
-                    .about("Specific theme to apply: dark, light or all.")
+                    Arg::new("luminance")
+                    .about("Specific theme luminance to apply: dark, light or all.")
                     .possible_values(&["dark", "light", "all"])
                     .value_hint(ValueHint::Other)
                     .default_value("all")
-                    .long("theme")
+                    .long("luminnace")
                 )
                 .arg(
                     Arg::new("pattern")
