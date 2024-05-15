@@ -3,6 +3,7 @@ use base16_color_scheme::{
     scheme::{BaseIndex, RgbColor},
     Scheme,
 };
+use clap::Parser;
 use dirs::{data_dir, preference_dir};
 use flavours::find::find_schemes;
 use flavours::find::find_template;
@@ -13,22 +14,23 @@ use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use flavours::cli;
 use flavours::operations::{apply, build, current, generate, info, list, list_templates, update};
-use flavours::{cli, completions};
 
 use std::fs::{create_dir_all, write};
 fn main() -> Result<()> {
-    let matches = cli::build_cli().get_matches();
+    // let matches = cli::build_cli().get_matches();
+    let matches = cli::Flavours::parse();
 
     // Completetions flag
-    if matches.is_present("completions") {
-        return completions::completions(matches.value_of("completions"));
-    };
+    // if matches.contains_id("completions") {
+    //     return completions::completions(matches.get_one("completions"));
+    // };
 
     // Flavours data directory
-    let flavours_dir = match matches.value_of("directory") {
+    let flavours_dir = match matches.directory {
         // User supplied
-        Some(argument) => Path::new(argument)
+        Some(argument) => argument
             .canonicalize()
             .with_context(|| "Invalid data directory supplied on argument")?,
         // If not supplied
@@ -51,9 +53,9 @@ fn main() -> Result<()> {
         .join("flavours");
 
     // Flavours config file
-    let flavours_config = match matches.value_of("config") {
+    let flavours_config = match matches.config {
         // User supplied
-        Some(path) => Path::new(path)
+        Some(path) => path
             .canonicalize()
             .with_context(|| "Invalid config file supplied on argument")?,
         // If not supplied
@@ -70,7 +72,7 @@ fn main() -> Result<()> {
     };
 
     // Should we be verbose?
-    let verbose = matches.is_present("verbose");
+    let verbose = matches.verbose;
 
     if verbose {
         println!("Using directory: {:?}", flavours_dir);
@@ -78,64 +80,74 @@ fn main() -> Result<()> {
     };
 
     // Check which subcommand was used
-    match matches.subcommand() {
-        Some(("current", sub_matches)) => match sub_matches.subcommand() {
-            Some(("luminance", _)) => {
-                let scheme_luminance =
-                    current::get_current_scheme_luminance(&flavours_dir, &flavours_config_dir)
-                        .expect("Failed to get current scheme luminance");
+    match matches.commands {
+        cli::FlavoursCommand::Current => {
+            let scheme_name = current::get_current_scheme_name(&flavours_dir)
+                .expect("Failed to get current scheme name");
 
-                println!("{}", scheme_luminance);
+            println!("{}", scheme_name);
 
-                Ok(())
-            }
-            _ => {
-                let scheme_name = current::get_current_scheme_name(&flavours_dir)
-                    .expect("Failed to get current scheme name");
+            Ok(())
+        }
 
-                println!("{}", scheme_name);
+        // Some(("current", sub_matches)) => match sub_matches.subcommand() {
+        //     Some(("luminance", _)) => {
+        //         let scheme_luminance =
+        //             current::get_current_scheme_luminance(&flavours_dir, &flavours_config_dir)
+        //                 .expect("Failed to get current scheme luminance");
 
-                Ok(())
-            }
-        },
+        //         println!("{}", scheme_luminance);
 
-        Some(("apply", sub_matches)) => {
+        //         Ok(())
+        //     }
+        //     _ => {
+        //         let scheme_name = current::get_current_scheme_name(&flavours_dir)
+        //             .expect("Failed to get current scheme name");
+
+        //         println!("{}", scheme_name);
+
+        //         Ok(())
+        //     }
+        // },
+        cli::FlavoursCommand::Apply {
+            pattern_arg,
+            lightweight,
+            luminance_arg,
+            stdin,
+        } => {
             //Get search patterns
-            let patterns = match sub_matches.values_of("pattern") {
-                Some(content) => content.collect(),
+            let patterns = match pattern_arg.pattern {
+                Some(content) => content,
                 //Defaults to wildcard
-                None => vec!["*"],
+                None => vec!["*".to_string()],
             };
-            let lightweight = sub_matches.is_present("lightweight");
-            let from_stdin = sub_matches.is_present("stdin");
-            let luminance = sub_matches.value_of("luminance").unwrap();
+            let luminance = luminance_arg.luminance;
+
+            let pattern_refs: Vec<&str> = patterns.iter().map(|s| s.as_str()).collect();
 
             apply::apply(
-                patterns,
+                pattern_refs,
                 &luminance,
                 &flavours_dir,
                 &flavours_config_dir,
                 &flavours_config,
                 lightweight,
-                from_stdin,
+                stdin,
                 verbose,
             )
         }
 
-        Some(("build", sub_matches)) => {
-            // let scheme = sub_matches.value_of("scheme");
-            let scheme_file_str = sub_matches.value_of("scheme").ok_or_else(|| {
-                anyhow!(
-                    "You must specify a scheme or file, the latter taking precedence if it exists"
-                )
-            })?;
-
-            let scheme_file_path = if Path::new(scheme_file_str).exists() {
-                PathBuf::from(scheme_file_str)
+        cli::FlavoursCommand::Build {
+            scheme,
+            template,
+            subtemplate,
+        } => {
+            let scheme_file_path = if Path::new(&scheme).exists() {
+                PathBuf::from(scheme)
             } else {
-                find_schemes(scheme_file_str, &flavours_dir, &flavours_config_dir)?
+                find_schemes(&scheme, &flavours_dir, &flavours_config_dir)?
                     .first() // Get the first PathBuf from the vector
-                    .ok_or_else(|| anyhow!("Could not find a scheme for {}", scheme_file_str))? // Handle None case
+                    .ok_or_else(|| anyhow!("Could not find a scheme for {}", scheme))? // Handle None case
                     .clone() // Clone the PathBuf to create a new instance
             };
 
@@ -149,34 +161,22 @@ fn main() -> Result<()> {
                 .to_string_lossy()
                 .to_string();
 
-            // Get template file path
-            let template_file_str = sub_matches.value_of("template").ok_or_else(|| {
-                 anyhow!("You must specify a template or file, the latter taking precedence if it exists")
-             })?;
-
-            let subtemplate = sub_matches.value_of("subtemplate").unwrap_or("default");
-
-            let template_file_path = if Path::new(template_file_str).exists() {
+            let template_file_path = if Path::new(&template).exists() {
                 if subtemplate != "default" {
                     return Err(anyhow!(
                         "Using subtemplates is not supported incase you are using a scheme file."
                     ));
                 }
 
-                PathBuf::from(template_file_str) // Create a PathBuf from the existing path
+                PathBuf::from(template) // Create a PathBuf from the existing path
             } else {
-                find_template(
-                    template_file_str,
-                    subtemplate,
-                    &flavours_dir,
-                    &flavours_config_dir,
-                )
-                .with_context(|| {
-                    format!(
-                        "Failed to locate subtemplate file {}/{}",
-                        template_file_str, subtemplate
-                    )
-                })?
+                find_template(&template, &subtemplate, &flavours_dir, &flavours_config_dir)
+                    .with_context(|| {
+                        format!(
+                            "Failed to locate subtemplate file {}/{}",
+                            template, subtemplate
+                        )
+                    })?
             };
 
             if verbose {
@@ -194,18 +194,24 @@ fn main() -> Result<()> {
             build::build(scheme_slug, scheme_contents, template_contents)
         }
 
-        Some(("list", sub_matches)) => {
-            let patterns = match sub_matches.values_of("pattern") {
-                Some(content) => content.collect(),
+        cli::FlavoursCommand::List {
+            luminance_arg,
+            lines,
+            templates,
+            pattern_arg,
+        } => {
+            //Get search patterns
+            let patterns = match pattern_arg.pattern {
+                Some(content) => content,
                 //Defaults to wildcard
-                None => vec!["*"],
+                None => vec!["*".to_string()],
             };
-            let luminance = sub_matches.value_of("luminance").unwrap();
-            let lines = sub_matches.is_present("lines");
+            let luminance = luminance_arg.luminance;
+            let pattern_refs: Vec<&str> = patterns.iter().map(|s| s.as_str()).collect();
 
-            if sub_matches.is_present("templates") {
+            if templates {
                 list_templates::list(
-                    patterns,
+                    pattern_refs,
                     &flavours_dir,
                     &flavours_config_dir,
                     verbose,
@@ -213,8 +219,8 @@ fn main() -> Result<()> {
                 )
             } else {
                 list::list(
-                    patterns,
-                    luminance,
+                    pattern_refs,
+                    &luminance,
                     &flavours_dir,
                     &flavours_config_dir,
                     verbose,
@@ -222,41 +228,38 @@ fn main() -> Result<()> {
                 )
             }
         }
-
-        Some(("update", sub_matches)) => {
-            let operation = sub_matches
-                .value_of("operation")
-                .ok_or_else(|| anyhow!("Invalid operation"))?;
-            update::update(operation, &flavours_dir, verbose, &flavours_config)
+        cli::FlavoursCommand::Update { operation } => {
+            update::update(&operation, &flavours_dir, verbose, &flavours_config)
         }
 
-        Some(("info", sub_matches)) => {
-            let patterns = match sub_matches.values_of("pattern") {
-                Some(content) => content.collect(),
+        cli::FlavoursCommand::Info { pattern_arg, raw } => {
+            let patterns = match pattern_arg.pattern {
+                Some(content) => content,
                 //Defaults to wildcard
-                None => vec!["*"],
+                None => vec!["*".to_string()],
             };
-            let raw = sub_matches.is_present("raw");
-            info::info(patterns, &flavours_dir, &flavours_config_dir, raw)
+            let pattern_refs: Vec<&str> = patterns.iter().map(|s| s.as_str()).collect();
+
+            info::info(pattern_refs, &flavours_dir, &flavours_config_dir, raw)
         }
 
-        Some(("generate", sub_matches)) => {
-            let slug = sub_matches.value_of("slug").unwrap_or("generated").into();
-            let name = sub_matches.value_of("name").unwrap_or("Generated").into();
-            let author = sub_matches.value_of("author").unwrap_or("Flavours").into();
+        cli::FlavoursCommand::Generate {
+            slug,
+            name,
+            author,
+            stdout,
+            image,
+            mode,
+        } => {
+            let image_file = image
+                .canonicalize()
+                .with_context(|| "Image file invalid or not found")?;
 
-            let image = match sub_matches.value_of("file") {
-                Some(content) => Path::new(content)
-                    .canonicalize()
-                    .with_context(|| "Invalid image file supplied"),
-                None => Err(anyhow!("No image file specified")),
-            }?;
-
-            let mode = match sub_matches.value_of("mode") {
+            let mode = match mode.as_deref() {
                 Some("dark") => Ok(generate::Mode::Dark),
                 Some("light") => Ok(generate::Mode::Light),
                 Some("auto") => {
-                    let img_buffer = image::open(&image)?;
+                    let img_buffer = image::open(image_file)?;
                     let img_pixels = img_buffer.to_rgba8().into_raw();
 
                     // Use color thief to get a palette
@@ -300,8 +303,6 @@ fn main() -> Result<()> {
                 _ => Err(anyhow!("No valid mode specified")),
             }?;
 
-            let to_stdout = sub_matches.is_present("stdout");
-
             let colors = generate::generate(&image, mode, verbose)?;
             let scheme = Scheme {
                 scheme: name,
@@ -318,7 +319,7 @@ fn main() -> Result<()> {
                     .collect::<Result<BTreeMap<_, _>>>()?,
             };
 
-            if to_stdout {
+            if stdout {
                 print!("{}", serde_yaml::to_string(&scheme)?);
             } else {
                 let path = flavours_dir
@@ -335,6 +336,5 @@ fn main() -> Result<()> {
             }
             Ok(())
         }
-        _ => Err(anyhow!("No valid subcommand specified")),
     }
 }

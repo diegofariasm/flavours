@@ -67,7 +67,7 @@
         commonArgs = {
           inherit src;
           pname = "flavours";
-          version = "0.0.0";
+          version = "0.7.1";
         };
 
         cargoArtifacts =

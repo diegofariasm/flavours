@@ -15,9 +15,7 @@ rust-version = "1.62.1"
 base16_color_scheme = "0.3.0"
 anyhow = "1.0"
 calm_io = "0.1"
-clap = { version = "=3.0.0-beta.4", features = ["wrap_help", "suggestions", "color"] }
-clap_generate = { version = "=3.0.0-beta.4" }
-clap_derive = { version = "=3.0.0-beta.4" }
+clap = { version = "=4.0.32", features = ["derive"] }
 color-thief = "0.2"
 image = "0.23"
 dirs = "3.0"
