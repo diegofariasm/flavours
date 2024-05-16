@@ -1,7 +1,8 @@
 use clap::{builder::PossibleValue, Parser, Subcommand};
+use clap_complete::Shell;
 use std::path::PathBuf;
 
-#[derive(Parser)]
+#[derive(Parser, Debug, PartialEq)]
 #[command(author, version, about, long_about = None, subcommand_required(true))]
 pub struct Flavours {
     /// Specify a configuration file (Defaults to ~/.config/flavours/config.toml on Linux)
@@ -20,21 +21,29 @@ pub struct Flavours {
     pub commands: FlavoursCommand,
 }
 
-#[derive(Parser)]
+#[derive(Parser, Debug, PartialEq)]
 pub struct LuminanceArg {
     /// Specific theme luminance to filter.
     #[arg(short, long, default_value = "all", value_parser = [PossibleValue::new("all"), PossibleValue::new("dark"), PossibleValue::new("light")])]
     pub luminance: String,
 }
 
-#[derive(Parser)]
+#[derive(Parser, Debug, PartialEq)]
 pub struct PatternArg {
     /// Scheme name or glob pattern to match when showing scheme(s). If ommited, defaults to * (all installed schemes).
     pub pattern: Option<Vec<String>>,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug, PartialEq)]
 pub enum FlavoursCommand {
+    /// Generate completions for specific shell
+    Completions {
+        ///  Outputs the completion file for given shell
+        //  #[arg(long = "generate", value_enum)]
+        #[arg(value_enum)]
+        generator: Shell,
+    },
+
     /// Applies scheme, according to user configuration
     Apply {
         /// Whether to run flavours in lightweight mode.

@@ -3,7 +3,8 @@ use base16_color_scheme::{
     scheme::{BaseIndex, RgbColor},
     Scheme,
 };
-use clap::Parser;
+use clap::{CommandFactory, Parser};
+use clap_complete::generate;
 use dirs::{data_dir, preference_dir};
 use flavours::find::find_schemes;
 use flavours::find::find_template;
@@ -12,20 +13,16 @@ use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::env;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 
-use flavours::cli;
+use flavours::cli::{Flavours, FlavoursCommand};
 use flavours::operations::{apply, build, current, generate, info, list, list_templates, update};
 
 use std::fs::{create_dir_all, write};
-fn main() -> Result<()> {
-    // let matches = cli::build_cli().get_matches();
-    let matches = cli::Flavours::parse();
 
-    // Completetions flag
-    // if matches.contains_id("completions") {
-    //     return completions::completions(matches.get_one("completions"));
-    // };
+fn main() -> Result<()> {
+    let matches = Flavours::parse();
 
     // Flavours data directory
     let flavours_dir = match matches.directory {
@@ -81,35 +78,33 @@ fn main() -> Result<()> {
 
     // Check which subcommand was used
     match matches.commands {
-        cli::FlavoursCommand::Current => {
-            let scheme_name = current::get_current_scheme_name(&flavours_dir)
-                .expect("Failed to get current scheme name");
+        FlavoursCommand::Completions { generator } => {
+            let cmd = Flavours::command();
 
-            println!("{}", scheme_name);
+            generate(
+                generator,
+                &mut cmd.clone(),
+                cmd.get_name().to_string(),
+                &mut io::stdout(),
+            );
 
             Ok(())
         }
 
-        // Some(("current", sub_matches)) => match sub_matches.subcommand() {
-        //     Some(("luminance", _)) => {
-        //         let scheme_luminance =
-        //             current::get_current_scheme_luminance(&flavours_dir, &flavours_config_dir)
-        //                 .expect("Failed to get current scheme luminance");
+        FlavoursCommand::Current => {
+            //         let scheme_luminance =
+            //             current::get_current_scheme_luminance(&flavours_dir, &flavours_config_dir)
+            //                 .expect("Failed to get current scheme luminance");
+            //         println!("{}", scheme_luminance);
+            //         Ok(())
 
-        //         println!("{}", scheme_luminance);
+            let scheme_name = current::get_current_scheme_name(&flavours_dir)
+                .expect("Failed to get current scheme name");
+            println!("{}", scheme_name);
+            Ok(())
+        }
 
-        //         Ok(())
-        //     }
-        //     _ => {
-        //         let scheme_name = current::get_current_scheme_name(&flavours_dir)
-        //             .expect("Failed to get current scheme name");
-
-        //         println!("{}", scheme_name);
-
-        //         Ok(())
-        //     }
-        // },
-        cli::FlavoursCommand::Apply {
+        FlavoursCommand::Apply {
             pattern_arg,
             lightweight,
             luminance_arg,
@@ -137,7 +132,7 @@ fn main() -> Result<()> {
             )
         }
 
-        cli::FlavoursCommand::Build {
+        FlavoursCommand::Build {
             scheme,
             template,
             subtemplate,
@@ -194,7 +189,7 @@ fn main() -> Result<()> {
             build::build(scheme_slug, scheme_contents, template_contents)
         }
 
-        cli::FlavoursCommand::List {
+        FlavoursCommand::List {
             luminance_arg,
             lines,
             templates,
@@ -228,11 +223,11 @@ fn main() -> Result<()> {
                 )
             }
         }
-        cli::FlavoursCommand::Update { operation } => {
+        FlavoursCommand::Update { operation } => {
             update::update(&operation, &flavours_dir, verbose, &flavours_config)
         }
 
-        cli::FlavoursCommand::Info { pattern_arg, raw } => {
+        FlavoursCommand::Info { pattern_arg, raw } => {
             let patterns = match pattern_arg.pattern {
                 Some(content) => content,
                 //Defaults to wildcard
@@ -243,7 +238,7 @@ fn main() -> Result<()> {
             info::info(pattern_refs, &flavours_dir, &flavours_config_dir, raw)
         }
 
-        cli::FlavoursCommand::Generate {
+        FlavoursCommand::Generate {
             slug,
             name,
             author,
