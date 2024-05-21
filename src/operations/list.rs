@@ -1,24 +1,21 @@
 use anyhow::{anyhow, Result};
 use std::path::Path;
 
-use crate::find::filter_schemes_by_theme;
-use crate::find::find_schemes;
+use crate::find::{filter_schemes_by_theme, find_schemes, find_templates};
 
-/// List subcommand
+/// List schemes subcommand
 ///
 /// * `patterns` - Vector with patterns
 /// * `base_dir` - flavours' base data dir
 /// * `config_dir` - flavours' config dir
 /// * `verbose` - Should we be verbose? (unused)
 /// * `lines` - Should we print each scheme on its own line?
-pub fn list(
+pub fn schemes(
     patterns: Vec<&str>,
     theme: &str,
     base_dir: &Path,
     config_dir: &Path,
-    _verbose: bool,
-    lines: bool,
-) -> Result<()> {
+) -> Result<Vec<String>> {
     let mut schemes = Vec::new();
     for pattern in patterns {
         let mut found_schemes = find_schemes(pattern, base_dir, config_dir)?;
@@ -48,21 +45,43 @@ pub fn list(
         return Err(anyhow!("No matching scheme found"));
     };
 
-    for scheme in &schemes {
-        // Print scheme
-        print!("{}", scheme);
-        if lines {
-            // Print newline
-            println!();
-        } else {
-            // Print space
-            print!(" ");
+    Ok(schemes)
+}
+
+/// List templates subcommand
+///
+/// * `patterns` - Vector with patterns
+/// * `base_dir` - flavours' base data dir
+/// * `config_dir` - flavours' config dir
+/// * `verbose` - Should we be verbose? (unused)
+/// * `lines` - Should we print each scheme on its own line?
+pub fn templates(patterns: Vec<&str>, base_dir: &Path, config_dir: &Path) -> Result<Vec<String>> {
+    let mut templates = Vec::new();
+    for pattern in patterns {
+        let found_templates = find_templates(pattern, base_dir, config_dir)?;
+        for found_template in found_templates {
+            templates.push(
+                found_template
+                    .strip_prefix(base_dir)
+                    .map_or_else(
+                        |_| found_template.strip_prefix(config_dir),
+                        |path| path.strip_prefix("base16/"),
+                    )
+                    .map_err(|_| anyhow!("Couldn't get template name"))?
+                    .to_str()
+                    .ok_or_else(|| anyhow!("Couldn't convert name"))?
+                    .replacen("templates/", "", 2)
+                    .replace(".mustache", ""),
+            );
         }
     }
-    // If we separated by spaces, print an ending newline
-    if !lines {
-        println!();
-    }
 
-    Ok(())
+    templates.sort();
+    templates.dedup();
+
+    if templates.is_empty() {
+        return Err(anyhow!("No matching template found"));
+    };
+
+    Ok(templates)
 }

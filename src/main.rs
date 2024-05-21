@@ -6,8 +6,8 @@ use base16_color_scheme::{
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 use dirs::{data_dir, preference_dir};
-use flavours::find::find_schemes;
-use flavours::find::find_template;
+use flavours::{cli::Output, find::find_template};
+use flavours::{find::find_schemes, operations::list};
 use palette::Srgb;
 use std::collections::BTreeMap;
 use std::convert::TryInto;
@@ -17,9 +17,15 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use flavours::cli::{Flavours, FlavoursCommand};
-use flavours::operations::{apply, build, current, generate, info, list, list_templates, update};
+use flavours::operations::{apply, build, current, generate, info, update};
 
 use std::fs::{create_dir_all, write};
+
+// use serde::{Serialize, Deserialize};
+// #[derive(Serialize, Deserialize)]
+// pub struct Template {
+//     name: String,
+// }
 
 fn main() -> Result<()> {
     let matches = Flavours::parse();
@@ -30,6 +36,7 @@ fn main() -> Result<()> {
         Some(argument) => argument
             .canonicalize()
             .with_context(|| "Invalid data directory supplied on argument")?,
+
         // If not supplied
         None => {
             // Try to get from env var
@@ -92,15 +99,11 @@ fn main() -> Result<()> {
         }
 
         FlavoursCommand::Current => {
-            //         let scheme_luminance =
-            //             current::get_current_scheme_luminance(&flavours_dir, &flavours_config_dir)
-            //                 .expect("Failed to get current scheme luminance");
-            //         println!("{}", scheme_luminance);
-            //         Ok(())
-
             let scheme_name = current::get_current_scheme_name(&flavours_dir)
                 .expect("Failed to get current scheme name");
+
             println!("{}", scheme_name);
+
             Ok(())
         }
 
@@ -189,45 +192,105 @@ fn main() -> Result<()> {
             build::build(scheme_slug, scheme_contents, template_contents)
         }
 
-        FlavoursCommand::List {
-            luminance_arg,
-            lines,
-            templates,
-            pattern_arg,
-        } => {
-            //Get search patterns
-            let patterns = match pattern_arg.pattern {
-                Some(content) => content,
-                //Defaults to wildcard
-                None => vec!["*".to_string()],
-            };
-            let luminance = luminance_arg.luminance;
-            let pattern_refs: Vec<&str> = patterns.iter().map(|s| s.as_str()).collect();
+        FlavoursCommand::List(list_matches) => {
+            match list_matches {
+                flavours::cli::ListCommand::Schemes {
+                    luminance_arg,
+                    lines,
+                    output_arg,
+                    pattern_arg,
+                } => {
+                    //Get search patterns
+                    let patterns = match pattern_arg.pattern {
+                        Some(content) => content,
+                        //Defaults to wildcard
+                        None => vec!["*".to_string()],
+                    };
 
-            if templates {
-                list_templates::list(
-                    pattern_refs,
-                    &flavours_dir,
-                    &flavours_config_dir,
-                    verbose,
+                    let luminance = luminance_arg.luminance;
+
+                    let pattern_refs: Vec<&str> = patterns.iter().map(|s| s.as_str()).collect();
+
+                    let schemes = list::schemes(
+                        pattern_refs,
+                        &luminance,
+                        &flavours_dir,
+                        &flavours_config_dir,
+                    )?;
+
+                    if let Some(output_arg) = output_arg.output {
+                        match output_arg {
+                            Output::Json => {
+                                let json_object = serde_json::json!({ "schemes": schemes });
+
+                                let json_string = serde_json::to_string(&json_object)?;
+                                println!("{}", json_string);
+                            }
+                        }
+                    } else {
+                        for scheme in schemes {
+                            // Print scheme
+                            print!("{}", scheme);
+                            if lines {
+                                // Print newline
+                                println!();
+                            } else {
+                                // Print space
+                                print!(" ");
+                            }
+                        }
+                    }
+
+                    Ok(())
+                }
+                flavours::cli::ListCommand::Templates {
                     lines,
-                )
-            } else {
-                list::list(
-                    pattern_refs,
-                    &luminance,
-                    &flavours_dir,
-                    &flavours_config_dir,
-                    verbose,
-                    lines,
-                )
+                    output_arg,
+                    pattern_arg,
+                } => {
+                    //Get search patterns
+                    let patterns = match pattern_arg.pattern {
+                        Some(content) => content,
+                        //Defaults to wildcard
+                        None => vec!["*".to_string()],
+                    };
+
+                    let pattern_refs: Vec<&str> = patterns.iter().map(|s| s.as_str()).collect();
+
+                    let templates =
+                        list::templates(pattern_refs, &flavours_dir, &flavours_config_dir)?;
+
+                    if let Some(output_arg) = output_arg.output {
+                        match output_arg {
+                            Output::Json => {
+                                let json_object = serde_json::json!({ "templates": templates });
+
+                                let json_string = serde_json::to_string(&json_object)?;
+                                println!("{}", json_string);
+                            }
+                        }
+                    } else {
+                        for template in templates {
+                            // Print scheme
+                            print!("{}", template);
+                            if lines {
+                                // Print newline
+                                println!();
+                            } else {
+                                // Print space
+                                print!(" ");
+                            }
+                        }
+                    }
+                    Ok(())
+                }
             }
         }
         FlavoursCommand::Update { operation } => {
             update::update(&operation, &flavours_dir, verbose, &flavours_config)
         }
 
-        FlavoursCommand::Info { pattern_arg, raw } => {
+        FlavoursCommand::Info { raw, pattern_arg } => {
             let patterns = match pattern_arg.pattern {
                 Some(content) => content,
                 //Defaults to wildcard

@@ -36,6 +36,8 @@
       ];
       systems = [
         "x86_64-linux"
+        "i686-linux"
+        "aarch64-linux"
       ];
 
       perSystem = {
@@ -46,22 +48,7 @@
         system,
         ...
       }: let
-        toolchainPackages = import inputs.nixpkgs {
-          inherit system;
-          overlays = [
-            inputs.rust-overlay.overlays.default
-          ];
-        };
-
-        toolchain = toolchainPackages.rust-bin.stable.latest.default.override {
-          extensions = [
-            "rust-src"
-            "rust-analyzer"
-            "clippy"
-          ];
-        };
-
-        craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
+        craneLib = crane.mkLib pkgs;
         src = craneLib.cleanCargoSource (craneLib.path ./.);
 
         commonArgs = {
@@ -72,9 +59,7 @@
 
         cargoArtifacts =
           craneLib.buildDepsOnly
-          (
-            commonArgs
-          );
+          commonArgs;
 
         flavoursDrv =
           craneLib.buildPackage
@@ -147,6 +132,7 @@
               cargo-deny
               cargo-edit
               cargo-lock
+              rust-analyzer
               cargo-nextest
             ];
           };
@@ -172,4 +158,3 @@
       };
     };
 }
-

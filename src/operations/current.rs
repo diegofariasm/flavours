@@ -17,10 +17,17 @@ fn get_scheme(scheme_name: String, base_dir: &Path, config_dir: &Path) -> Result
         .first()
         .with_context(|| "Could not find any schemes")?;
 
-    //Read chosen scheme
+    let scheme_slug = scheme_file
+        .file_stem()
+        .ok_or_else(|| anyhow!("The scheme path must contain a valid filename"))?
+        .to_string_lossy()
+        .to_string();
+
     let scheme_contents = fs::read_to_string(scheme_file)
         .with_context(|| format!("Couldn't read scheme file at {:?}.", scheme_file))?;
-    let scheme = serde_yaml::from_str(&scheme_contents)?;
+
+    let mut scheme: Scheme = serde_yaml::from_str(&scheme_contents)?;
+    scheme.slug = scheme_slug;
 
     Ok(scheme)
 }
@@ -31,6 +38,7 @@ fn get_scheme(scheme_name: String, base_dir: &Path, config_dir: &Path) -> Result
 pub fn get_current_scheme_name(dir: &Path) -> Result<String> {
     // File that stores last used scheme
     let file_path = &dir.join("lastscheme");
+
     // Try to open it
     let scheme: String = read_to_string(file_path)
         .with_context(|| "Failed to read last scheme file. Try applying first.")?

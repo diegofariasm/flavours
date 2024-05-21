@@ -1,16 +1,18 @@
 use std::env::set_var;
-use std::fs::{create_dir_all, remove_dir_all, write, File, read_to_string, OpenOptions};
-use std::io::{self, BufRead, BufReader, prelude::*};
+use std::fs::{create_dir_all, read_to_string, remove_dir_all, write, File, OpenOptions};
+use std::io::{self, prelude::*, BufRead, BufReader};
 use std::path::Path;
 use std::process::Command;
 use std::thread::spawn;
 
-use anyhow::{anyhow, Context, Result};
 use crate::config::Config;
+use anyhow::{anyhow, Context, Result};
 
 // nabbed from https://doc.rust-lang.org/rust-by-example/std_misc/file/read_lines.html
 fn read_lines<P>(filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
+where
+    P: AsRef<Path>,
+{
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
 }
@@ -34,7 +36,8 @@ fn parse_yml_line(line: &str) -> Result<(&str, String)> {
 ///* `file` - Path to sources file
 fn write_sources(s_repo: &str, t_repo: &str, file: &Path) -> Result<()> {
     let mut file = File::create(file).with_context(|| format!("Couldn't open {:?}", file))?;
-    write!(file, "schemes: {}\ntemplates: {}", s_repo, t_repo).with_context(|| format!("Couldn't open {:?}", file))?;
+    write!(file, "schemes: {}\ntemplates: {}", s_repo, t_repo)
+        .with_context(|| format!("Couldn't open {:?}", file))?;
 
     Ok(())
 }
@@ -47,18 +50,17 @@ fn get_sources(file: &Path, config: &Config) -> Result<(String, String)> {
     // Default repos
     let default_s_repo = "https://github.com/chriskempson/base16-schemes-source.git";
     let default_t_repo = "https://github.com/chriskempson/base16-templates-source.git";
-    
+
     // config source indicators
     let use_config_sources = config.schemes.is_some();
     let use_config_templates = config.templates.is_some();
 
     // use available config sources, otherwise use defaults
-    let (mut s_repo, mut t_repo) =
-        match (config.schemes.as_ref(), config.templates.as_ref()) {
-            (Some(s), Some(t)) => (String::from(s), String::from(t)),
-            (Some(s), None) => (String::from(s), String::from(default_t_repo)),
-            (None, Some(t)) => (String::from(default_s_repo), String::from(t)),
-            (None, None) => (String::from(default_s_repo), String::from(default_t_repo)),
+    let (mut s_repo, mut t_repo) = match (config.schemes.as_ref(), config.templates.as_ref()) {
+        (Some(s), Some(t)) => (String::from(s), String::from(t)),
+        (Some(s), None) => (String::from(s), String::from(default_t_repo)),
+        (None, Some(t)) => (String::from(default_s_repo), String::from(t)),
+        (None, None) => (String::from(default_s_repo), String::from(default_t_repo)),
     };
 
     // Try to open file
@@ -218,11 +220,7 @@ fn git_clone(path: &Path, repo: String, verbose: bool, clone_type: CloneType) ->
     }
 }
 
-fn update_lists(
-    dir: &Path,
-    verbose: bool,
-    config_path: &Path
-) -> Result<()> {
+fn update_lists(dir: &Path, verbose: bool, config_path: &Path) -> Result<()> {
     let sources_dir = &dir.join("sources");
     if verbose {
         println!("Updating sources list from sources.yaml")
@@ -256,10 +254,7 @@ fn update_lists(
     let config = Config::read(&config_contents, config_path)?;
 
     // Get schemes and templates repository from file
-    let (schemes_source, templates_source) = get_sources(
-            &dir.join("sources.yaml"),
-            &config 
-    )?;
+    let (schemes_source, templates_source) = get_sources(&dir.join("sources.yaml"), &config)?;
     if verbose {
         println!("Schemes source: {}", schemes_source);
         println!("Templates source: {}", templates_source);
@@ -301,24 +296,21 @@ fn update_lists(
                 for es in &extra_schemes {
                     let text = format!("{}: {}", es.name, es.source);
                     lines.push(text);
-                };
+                }
 
                 // sort everything
                 lines.sort();
 
                 // save file
-                let mut write_file = OpenOptions::new()
-                    .write(true)
-                    .open(&scheme_list)
-                    .unwrap();
+                let mut write_file = OpenOptions::new().write(true).open(&scheme_list).unwrap();
                 for line in &lines {
                     if let Err(e) = writeln!(write_file, "{}", line) {
                         eprintln!("Couldn't write to file: {}", e);
-                };
-                };
+                    };
+                }
             };
-        },
-        _ => ()
+        }
+        _ => (),
     };
     match config.extra_template {
         Some(extra_templates) => {
@@ -328,24 +320,21 @@ fn update_lists(
                 for et in &extra_templates {
                     let text = format!("{}: {}", et.name, et.source);
                     lines.push(text);
-                };
+                }
 
                 // sort everything
                 lines.sort();
 
                 // save file
-                let mut write_file = OpenOptions::new()
-                    .write(true)
-                    .open(&template_list)
-                    .unwrap();
+                let mut write_file = OpenOptions::new().write(true).open(&template_list).unwrap();
                 for line in &lines {
                     if let Err(e) = writeln!(write_file, "{}", line) {
                         eprintln!("Couldn't write to file: {}", e);
-                };
+                    };
                 }
             };
-        },
-        _ => ()
+        }
+        _ => (),
     };
 
     Ok(())
@@ -418,12 +407,7 @@ fn update_templates(dir: &Path, verbose: bool) -> Result<()> {
 ///* `operation` - Which operation to do
 ///* `dir` - The base path to be used
 ///* `verbose` - Boolean, be verbose if true
-pub fn update(
-    operation: &str,
-    dir: &Path,
-    verbose: bool,
-    config_path: &Path
-) -> Result<()> {
+pub fn update(operation: &str, dir: &Path, verbose: bool, config_path: &Path) -> Result<()> {
     let base16_dir = &dir.join("base16");
     create_dir_all(base16_dir)?;
     match operation {

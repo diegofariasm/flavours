@@ -1,4 +1,4 @@
-use clap::{builder::PossibleValue, Parser, Subcommand};
+use clap::{builder::PossibleValue, Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
 use std::path::PathBuf;
 
@@ -21,6 +21,21 @@ pub struct Flavours {
     pub commands: FlavoursCommand,
 }
 
+#[derive(Debug, Clone, PartialEq, ValueEnum)]
+pub enum Output {
+    Json,
+    // TODO: support pretty printing
+    // #[arg(short, long)]
+    // pretty: bool,
+}
+
+#[derive(Parser, Debug, PartialEq)]
+pub struct OutputArg {
+    //// Specifies the output format for printing results.
+    #[arg(global(true), short, long)]
+    pub output: Option<Output>,
+}
+
 #[derive(Parser, Debug, PartialEq)]
 pub struct LuminanceArg {
     /// Specific theme luminance to filter.
@@ -34,8 +49,44 @@ pub struct PatternArg {
     pub pattern: Option<Vec<String>>,
 }
 
+/// List information available to flavours
+#[derive(Subcommand, Debug, PartialEq)]
+pub enum ListCommand {
+    /// List all matching templates
+    Templates {
+        /// Print each scheme on its own line
+        #[arg(short, long)]
+        lines: bool,
+
+        #[command(flatten)]
+        output_arg: OutputArg,
+
+        #[command(flatten)]
+        pattern_arg: PatternArg,
+    },
+
+    /// List all matching schemes
+    Schemes {
+        /// Print each scheme on its own line
+        #[arg(short, long)]
+        lines: bool,
+
+        #[command(flatten)]
+        output_arg: OutputArg,
+
+        #[command(flatten)]
+        pattern_arg: PatternArg,
+
+        #[command(flatten)]
+        luminance_arg: LuminanceArg,
+    },
+}
+
 #[derive(Subcommand, Debug, PartialEq)]
 pub enum FlavoursCommand {
+    #[command(subcommand)]
+    List(ListCommand),
+
     /// Generate completions for specific shell
     Completions {
         ///  Outputs the completion file for given shell
@@ -75,6 +126,7 @@ pub enum FlavoursCommand {
 
     /// Get information from the last applied scheme
     Current,
+
     /// Generate schemes based on images
     Generate {
         /// Scheme slug (the name you specify when applying schemes) to output to. If ommited, defaults to 'generated'
@@ -99,23 +151,6 @@ pub enum FlavoursCommand {
 
         /// Image file from where to generate scheme
         image: PathBuf,
-    },
-
-    /// Prints a list with all matching schemes
-    List {
-        /// Print each scheme on its own line
-        #[arg(short, long)]
-        lines: bool,
-
-        /// List templates instead of schemes
-        #[arg(short, long)]
-        templates: bool,
-
-        #[command(flatten)]
-        luminance_arg: LuminanceArg,
-
-        #[command(flatten)]
-        pattern_arg: PatternArg,
     },
 
     /// Shows scheme colors for all schemes matching pattern. Optionally uses truecolor
