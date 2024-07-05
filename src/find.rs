@@ -5,7 +5,9 @@ use base16_color_scheme::Scheme;
 use glob::glob;
 use path::{Path, PathBuf};
 use std::path;
-use std::{fmt, fs, vec};
+use std::{fs, vec};
+
+use crate::scheme::Luminance;
 
 /// Find color schemes matching pattern in either the config dir or the data dir.
 ///
@@ -44,22 +46,6 @@ pub fn find_schemes(pattern: &str, base_dir: &Path, config_dir: &Path) -> Result
     }
 
     Ok(found)
-}
-
-/// Luminosity of a theme
-#[derive(Debug)]
-pub enum Luminance {
-    Dark,
-    Light,
-}
-
-impl fmt::Display for Luminance {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Luminance::Dark => write!(f, "dark"),
-            Luminance::Light => write!(f, "light"),
-        }
-    }
 }
 
 pub fn get_luminance(scheme: &Scheme) -> Luminance {

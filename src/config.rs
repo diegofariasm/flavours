@@ -8,8 +8,10 @@ pub struct Config {
     pub shell: Option<String>,
     pub schemes: Option<String>,
     pub templates: Option<String>,
+
     pub extra_scheme: Option<Vec<ExtraSource>>,
     pub extra_template: Option<Vec<ExtraSource>>,
+
     pub item: Option<Vec<ConfigItem>>,
     pub items: Option<Vec<ConfigItem>>,
 }

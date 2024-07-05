@@ -4,7 +4,8 @@ use std::fs;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
-use crate::find::{find_schemes, get_luminance, Luminance};
+use crate::find::{find_schemes, get_luminance};
+use crate::scheme::Luminance;
 
 /// Get scheme by name
 ///

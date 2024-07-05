@@ -9,8 +9,9 @@ use std::str;
 use std::thread;
 
 use crate::config::Config;
-use crate::find::{filter_schemes_by_theme, find_schemes, find_template, get_luminance, Luminance};
+use crate::find::{filter_schemes_by_theme, find_schemes, find_template, get_luminance};
 use crate::operations::build::build_template;
+use crate::scheme::Luminance;
 
 /// Picks a random path, from given vec
 /// * `values` - Vec with paths

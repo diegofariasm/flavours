@@ -6,6 +6,8 @@ use base16_color_scheme::{
 use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 use dirs::{data_dir, preference_dir};
+use flavours::cli::{Flavours, FlavoursCommand};
+use flavours::operations::{apply, build, current, generate, info, update};
 use flavours::{cli::Output, find::find_template};
 use flavours::{find::find_schemes, operations::list};
 use palette::Srgb;
@@ -15,9 +17,6 @@ use std::env;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-
-use flavours::cli::{Flavours, FlavoursCommand};
-use flavours::operations::{apply, build, current, generate, info, update};
 
 use std::fs::{create_dir_all, write};
 
