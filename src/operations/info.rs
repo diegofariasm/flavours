@@ -1,13 +1,6 @@
-use anyhow::{anyhow, Context, Result};
-use base16_color_scheme::{
-    scheme::{RgbColor, RgbColorFormatter},
-    Scheme,
-};
+use anyhow::Result;
+use base16_color_scheme::scheme::{RgbColor, RgbColorFormatter};
 use calm_io::stdoutln;
-use std::fs::read_to_string;
-use std::path::Path;
-
-use crate::find::find_schemes;
 
 fn true_color(hex_color: &str, background: bool) -> Result<String> {
     let rgb = hex::decode(hex_color)?;
@@ -67,97 +60,5 @@ pub fn print_color_rgb(color: RgbColor) -> Result<()> {
             _ => Err(e),
         },
     }?;
-    Ok(())
-}
-
-/// Info subcommand
-///
-/// * `patterns` - Vector with patterns
-/// * `base_dir` - flavours base data dir
-/// * `verbose` - Should we be verbose? (unused)
-/// * `color` - Should we print with colors?
-pub fn info(patterns: Vec<&str>, base_dir: &Path, config_dir: &Path, raw: bool) -> Result<()> {
-    let mut schemes = Vec::new();
-    for pattern in patterns {
-        let found_schemes = find_schemes(pattern, base_dir, config_dir)?;
-
-        schemes.extend_from_slice(&found_schemes)
-    }
-    schemes.sort();
-    schemes.dedup();
-
-    if schemes.is_empty() {
-        return Err(anyhow!("No matching scheme found"));
-    };
-
-    let mut first = true;
-    for scheme_file in schemes {
-        if first {
-            first = false;
-        } else {
-            match stdoutln!() {
-                Ok(_) => Ok(()),
-                Err(e) => match e.kind() {
-                    std::io::ErrorKind::BrokenPipe => Ok(()),
-                    _ => Err(e),
-                },
-            }?;
-        }
-        let scheme_slug = scheme_file
-            .file_stem()
-            .ok_or_else(|| anyhow!("Couldn't get scheme name."))?
-            .to_str()
-            .ok_or_else(|| anyhow!("Couldn't convert scheme file name."))?;
-        let scheme_contents = read_to_string(&scheme_file)
-            .with_context(|| format!("Couldn't read scheme file at {:?}.", scheme_file))?;
-
-        let mut scheme: Scheme = serde_yaml::from_str(&scheme_contents)?;
-        scheme.slug = scheme_slug.to_string();
-
-        match stdoutln!(
-            "{} ({}) @ {}",
-            scheme.scheme,
-            scheme.slug,
-            scheme_file.to_string_lossy()
-        ) {
-            Ok(_) => Ok(()),
-            Err(e) => match e.kind() {
-                std::io::ErrorKind::BrokenPipe => Ok(()),
-                _ => Err(e),
-            },
-        }?;
-
-        match stdoutln!("by {}", scheme.author) {
-            Ok(_) => Ok(()),
-            Err(e) => match e.kind() {
-                std::io::ErrorKind::BrokenPipe => Ok(()),
-                _ => Err(e),
-            },
-        }?;
-
-        if raw {
-            for (_, &color) in scheme.colors.iter() {
-                use base16_color_scheme::template::color_field::{Format, Hex};
-                match stdoutln!(
-                    "#{}",
-                    RgbColorFormatter {
-                        color,
-                        format: Format::Hex(Hex::Rgb)
-                    }
-                ) {
-                    Ok(_) => Ok(()),
-                    Err(e) => match e.kind() {
-                        std::io::ErrorKind::BrokenPipe => Ok(()),
-                        _ => Err(e),
-                    },
-                }?;
-            }
-        } else {
-            for (_, &color) in scheme.colors.iter() {
-                print_color_rgb(color)?;
-            }
-        }
-    }
-
     Ok(())
 }

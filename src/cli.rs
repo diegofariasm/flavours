@@ -153,14 +153,13 @@ pub enum FlavoursCommand {
         image: PathBuf,
     },
 
-    /// Shows scheme colors for all schemes matching pattern. Optionally uses truecolor
+    /// Shows scheme information
     Info {
-        /// Don't pretty print the colors.
-        #[arg(short, long)]
-        raw: bool,
+        ///  Scheme from which to show informmation
+        scheme: String,
 
         #[command(flatten)]
-        pattern_arg: PatternArg,
+        output_arg: OutputArg,
     },
 
     /// Downloads schemes, templates, or updates their lists (from repos specified in sources.yml)

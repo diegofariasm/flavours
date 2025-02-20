@@ -12,7 +12,7 @@ use crate::scheme::Luminance;
 /// * `scheme_name` - Name of the scheme to get
 /// * `base_dir` - flavours data directory
 /// * `config_dir` - flavours config directory
-fn get_scheme(scheme_name: String, base_dir: &Path, config_dir: &Path) -> Result<Scheme> {
+pub fn get_scheme(scheme_name: String, base_dir: &Path, config_dir: &Path) -> Result<Scheme> {
     let schemes = find_schemes(&scheme_name, base_dir, config_dir)?;
     let scheme_file: &PathBuf = schemes
         .first()

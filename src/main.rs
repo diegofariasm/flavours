@@ -7,7 +7,8 @@ use clap::{CommandFactory, Parser};
 use clap_complete::generate;
 use dirs::{data_dir, preference_dir};
 use flavours::cli::{Flavours, FlavoursCommand};
-use flavours::operations::{apply, build, current, generate, info, update};
+use flavours::operations::current::get_scheme;
+use flavours::operations::{apply, build, current, generate, update};
 use flavours::{cli::Output, find::find_template};
 use flavours::{find::find_schemes, operations::list};
 use palette::Srgb;
@@ -289,15 +290,31 @@ fn main() -> Result<()> {
             update::update(&operation, &flavours_dir, verbose, &flavours_config)
         }
 
-        FlavoursCommand::Info { raw, pattern_arg } => {
-            let patterns = match pattern_arg.pattern {
-                Some(content) => content,
-                //Defaults to wildcard
-                None => vec!["*".to_string()],
-            };
-            let pattern_refs: Vec<&str> = patterns.iter().map(|s| s.as_str()).collect();
+        FlavoursCommand::Info { scheme, output_arg } => {
+            let full_scheme = get_scheme(scheme, &flavours_dir, &flavours_config_dir)?;
+            if let Some(output_arg) = output_arg.output {
+                match output_arg {
+                    Output::Json => {
+                        //let json_object = serde_json::json!({ "scheme": full_scheme });
+                        //let json_string = serde_json::to_string(&json_object)?;
+                        //println!("{}", json_string);
+                        let json_object = serde_json::json!({
+                            "scheme": full_scheme.scheme,
+                            "author": full_scheme.author,
+                            "colors": full_scheme.colors,
+                        });
+                        let json_string = serde_json::to_string(&json_object)?;
 
-            info::info(pattern_refs, &flavours_dir, &flavours_config_dir, raw)
+                        println!("{}", json_string);
+                    }
+                }
+            } else {
+                print!("{:#?}", full_scheme);
+            }
+
+            Ok(())
+
+            // info::info(pattern_refs, &flavours_dir, &flavours_config_dir, raw)
         }
 
         FlavoursCommand::Generate {
@@ -361,6 +378,7 @@ fn main() -> Result<()> {
             }?;
 
             let colors = generate::generate(&image, mode, verbose)?;
+
             let scheme = Scheme {
                 scheme: name,
                 slug,
